@@ -1,10 +1,10 @@
-name = "worker"
+name = "cron-durable-object"
 # type = "javascript" is required to use the `[build]` section
 type = "javascript"
 workers_dev = true
-account_id = ""
-route = ""
-zone_id = ""
+account_id = "c7c15d640c62b31052dfe8ffaf22aa66"
+route = "transactions.kabirsikand.com/*"
+zone_id = "64fd73ab667b730cafb47a824c4c7b1f"
 
 [build.upload]
 # Upload the code directly from the src directory.
@@ -14,4 +14,4 @@ format = "modules"
 main = "./index.mjs"
 
 [durable_objects]
-bindings = [{name = "COUNTER", class_name = "Counter"}]
+bindings = [{name = "TRANSACTIONTIME", class_name = "TransactionTime"}]

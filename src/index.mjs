@@ -7,24 +7,24 @@ export default {
 }
 
 async function handleRequest(request, env) {
-  let id = env.COUNTER.idFromName("A");
-  let obj = env.COUNTER.get(id);
-  let resp = await obj.fetch(request.url);
-  let count = await resp.text();
-
-  return new Response("Durable Object 'A' count: " + count);
+  let id = env.TRANSACTIONTIME.idFromName("A");
+  let obj = env.TRANSACTIONTIME.get(id);
+  let transactionTime = await obj.fetch(request.url);
+  return new Response(JSON.stringify(await transactionTime.text()));
 }
 
 // Durable Object
 
-export class Counter {
+export class TransactionTime {
   constructor(state, env) {
     this.state = state;
     // `blockConcurrencyWhile()` ensures no requests are delivered until
     // initialization completes.
     this.state.blockConcurrencyWhile(async () => {
-        let stored = await this.state.storage.get("value");
-        this.value = stored || 0;
+        let storedDate = await this.state.storage.get("date");
+        this.date = storedDate || new Date();
+        let storedTimeDiff = await this.state.storage.get("timeDiff");
+        this.timeDiff = storedTimeDiff || 0;
     })
   }
 
@@ -32,28 +32,30 @@ export class Counter {
   async fetch(request) {
     // Apply requested action.
     let url = new URL(request.url);
-    let currentValue = this.value;
+    let timeSinceLastTransaction = await this.state.storage.get("timeDiff");
+    let date = new Date(await this.state.storage.get("date"));
     switch (url.pathname) {
-    case "/increment":
-      currentValue = ++this.value;
-      await this.state.storage.put("value", this.value);
+    case "/put":
+      let newDate = new Date();
+      console.log(date)
+      timeSinceLastTransaction = Math.abs(newDate - date) / 1000;
+      date = newDate
+      await this.state.storage.put("date", date);
+      await this.state.storage.put("timeDiff", timeSinceLastTransaction);
       break;
-    case "/decrement":
-      currentValue = --this.value;
-      await this.state.storage.put("value", this.value);
-      break;
-    case "/":
-      // Just serve the current value. No storage calls needed!
+    case "/get":
+      // Just serve the current date. No storage calls needed!
       break;
     default:
       return new Response("Not found", {status: 404});
     }
 
-    // Return `currentValue`. Note that `this.value` may have been
+    // Return `timeSinceLastTransaction`. Note that `this.date` may have been
     // incremented or decremented by a concurrent request when we
     // yielded the event loop to `await` the `storage.put` above!
-    // That's why we stored the counter value created by this
-    // request in `currentValue` before we used `await`.
-    return new Response(currentValue);
+    // That's why we stored the counter date created by this
+    // request in `timeSinceLastTransaction` before we used `await`.
+    console.log(JSON.stringify({date, timeSinceLastTransaction}));
+    return new Response([date, timeSinceLastTransaction]);
   }
 }
